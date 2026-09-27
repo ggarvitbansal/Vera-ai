@@ -253,11 +253,18 @@ class GeminiProvider(LLMProvider):
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
         req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json"})
-        resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
-        data = json.loads(resp.read().decode("utf-8"))
-        parts = data["candidates"][0]["content"]["parts"]
-        text_parts = [p.get("text", "") for p in parts if "text" in p and not p.get("thought", False)]
-        return "\n".join(text_parts) if text_parts else parts[0].get("text", "")
+        for attempt in range(4):
+            try:
+                resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
+                data = json.loads(resp.read().decode("utf-8"))
+                parts = data["candidates"][0]["content"]["parts"]
+                text_parts = [p.get("text", "") for p in parts if "text" in p and not p.get("thought", False)]
+                return "\n".join(text_parts) if text_parts else parts[0].get("text", "")
+            except urlerror.HTTPError as e:
+                if e.code in [429, 503] and attempt < 3:
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                raise
 
 
 class DeepSeekProvider(LLMProvider):
