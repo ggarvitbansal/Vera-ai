@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from context_store import store
@@ -23,6 +23,255 @@ from composer import compose
 app = FastAPI(title="magicpin AI Challenge — Vera Assistant", version="1.0.0")
 
 START_TIME = time.time()
+
+LANDING_PAGE_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>magicpin AI Challenge — Vera Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-magic: #e11d48;
+      --accent-glow: #f43f5e;
+      --accent-emerald: #10b981;
+      --accent-blue: #3b82f6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at 15% 15%, rgba(225, 29, 72, 0.12) 0%, transparent 40%),
+                  radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.10) 0%, transparent 40%),
+                  var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      backdrop-filter: blur(16px);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-accent {
+      color: var(--accent-magic);
+      -webkit-text-fill-color: var(--accent-magic);
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin-top: 2rem;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 1.25rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(244, 63, 94, 0.4);
+      box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.15);
+    }
+    .method-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 0.75rem;
+      width: fit-content;
+    }
+    .get-tag { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .post-tag { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .docs-tag { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+    .features-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .footer a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>magicpin <span class="brand-accent">Vera</span> Engine</h1>
+        <p class="subtitle">Autonomous Merchant Growth Partner & Cialdini Message Composer</p>
+      </div>
+      <div class="badge">
+        <span class="pulse-dot"></span>
+        Live & Ready
+      </div>
+    </div>
+
+    <div class="grid">
+      <a href="/docs" class="card" target="_blank">
+        <div>
+          <span class="method-tag docs-tag">OPENAPI</span>
+          <div class="card-title">Interactive Docs (/docs)</div>
+          <div class="card-desc">Interactive Swagger UI explorer for testing all challenge endpoints live in your browser.</div>
+        </div>
+      </a>
+
+      <a href="/v1/healthz" class="card" target="_blank">
+        <div>
+          <span class="method-tag get-tag">GET</span>
+          <div class="card-title">Healthz (/v1/healthz)</div>
+          <div class="card-desc">Liveness probe returning server uptime and in-memory context store counts.</div>
+        </div>
+      </a>
+
+      <a href="/v1/metadata" class="card" target="_blank">
+        <div>
+          <span class="method-tag get-tag">GET</span>
+          <div class="card-title">Metadata (/v1/metadata)</div>
+          <div class="card-desc">Bot registration metadata, author information, architecture summary, and versioning.</div>
+        </div>
+      </a>
+
+      <div class="card">
+        <div>
+          <span class="method-tag post-tag">POST</span>
+          <div class="card-title">API Endpoints</div>
+          <div class="card-desc"><code>/v1/context</code> (4-Context state store)<br><code>/v1/tick</code> (Proactive outreach trigger)<br><code>/v1/reply</code> (Multi-turn conversational bot)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="features-list">
+      <span class="chip">🎯 4-Context Framework</span>
+      <span class="chip">🦷 Dentists</span>
+      <span class="chip">💇‍♀️ Salons</span>
+      <span class="chip">🍕 Restaurants</span>
+      <span class="chip">🏋️ Gyms</span>
+      <span class="chip">💊 Pharmacies</span>
+      <span class="chip">🛡️ Anti-Loop Guardrails</span>
+      <span class="chip">⚡ Sub-50ms Response</span>
+    </div>
+
+    <div class="footer">
+      <div>Built for the <strong>magicpin AI Challenge</strong></div>
+      <div><a href="https://github.com/ggarvitbansal/Vera-ai" target="_blank">GitHub Repository ↗</a></div>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return HTMLResponse(content=LANDING_PAGE_HTML)
+
 
 # Multi-turn conversation store: conversation_id -> list of turn dicts
 conversations: Dict[str, List[Dict[str, Any]]] = {}
