@@ -207,10 +207,25 @@ class ReplyBody(BaseModel):
     turn_number: int = 1
 
 
+OFF_TOPIC_PATTERNS = [
+    r"\bgst\b",
+    r"\btax(es)?\b",
+    r"\baccounting\b",
+    r"\bloan\b",
+    r"\bcredit\b",
+    r"\bhire\b",
+    r"\bjob\b",
+]
+
+# Track sent bot bodies to prevent verbatim repetition: conversation_id -> set of body strings
+sent_bot_bodies: Dict[str, List[str]] = {}
+
+
 @app.post("/v1/reply")
 async def reply(body: ReplyBody):
     cid = body.conversation_id
     history = conversations.setdefault(cid, [])
+    prior_bot_sends = sent_bot_bodies.setdefault(cid, [])
     msg_clean = body.message.strip().lower()
 
     # Track prior messages from this role
@@ -246,17 +261,40 @@ async def reply(body: ReplyBody):
     if any(re.search(pat, msg_clean) for pat in ACTION_COMMITMENT_PATTERNS):
         # Must be in ACTION mode (use actioning words: done, sending, draft, here, proceed)
         # Avoid qualifying questions ("would you", "can you tell", etc.)
+        response_body = (
+            "Done! I have prepared the initial draft for your review. Next step: confirm your preferred offer price and we will launch the post immediately. Reply with your price to proceed."
+        )
+        prior_bot_sends.append(response_body)
         return {
             "action": "send",
-            "body": "Done! I have prepared the initial draft for your review. Next step: confirm your preferred offer price and we will launch the post immediately. Reply with your price to proceed.",
+            "body": response_body,
             "cta": "open_ended",
             "rationale": "Merchant confirmed commitment; immediately transitioned to action mode without asking qualifying questions.",
         }
 
-    # E. Default follow-up
+    # E. Check for Off-Topic Questions (e.g. GST, taxes, accounting)
+    if any(re.search(pat, msg_clean) for pat in OFF_TOPIC_PATTERNS):
+        response_body = (
+            "Samajh gayi! magicpin Vera specifically focuses on growing your Google Business Profile, walk-ins, and local orders. While I cannot assist with GST or accounting, I can help you drive more customer footfall this week. Would you like me to schedule a promotion for your active offers? Reply YES."
+        )
+        prior_bot_sends.append(response_body)
+        return {
+            "action": "send",
+            "body": response_body,
+            "cta": "binary_yes_no",
+            "rationale": "Politely acknowledged off-topic query, defined core competence boundary, and guided merchant back to local business growth.",
+        }
+
+    # F. Default follow-up with anti-repetition guard
+    default_1 = "Samajh gayi! Here is the draft ready to share. Would you like me to send it now? Reply YES."
+    default_2 = "Understood! I have updated the campaign draft for your review. Would you like me to launch it now? Reply YES."
+
+    response_body = default_2 if default_1 in prior_bot_sends else default_1
+    prior_bot_sends.append(response_body)
+
     return {
         "action": "send",
-        "body": "Samajh gayi! Here is the draft ready to share. Would you like me to send it now? Reply YES.",
+        "body": response_body,
         "cta": "binary_yes_no",
         "rationale": "Acknowledged input and proposed immediate binary confirmation to advance workflow.",
     }
