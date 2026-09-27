@@ -46,7 +46,7 @@ LLM_API_KEY = (
 
 # Auto-assign provider if not explicitly given
 if not LLM_PROVIDER:
-    if os.environ.get("GEMINI_API_KEY") or LLM_API_KEY.startswith("AIzaSy"):
+    if os.environ.get("GEMINI_API_KEY") or LLM_API_KEY.startswith("AIzaSy") or LLM_API_KEY.startswith("AQ."):
         LLM_PROVIDER = "gemini"
     elif os.environ.get("GROQ_API_KEY") or LLM_API_KEY.startswith("gsk_"):
         LLM_PROVIDER = "groq"
@@ -239,7 +239,7 @@ class AnthropicProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = ""):
         self.api_key = api_key
-        self.model = model or "gemini-1.5-flash"
+        self.model = model or "gemini-flash-latest"
 
     def name(self) -> str:
         return f"Gemini ({self.model})"
@@ -255,7 +255,9 @@ class GeminiProvider(LLMProvider):
         req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json"})
         resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
         data = json.loads(resp.read().decode("utf-8"))
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        parts = data["candidates"][0]["content"]["parts"]
+        text_parts = [p.get("text", "") for p in parts if "text" in p and not p.get("thought", False)]
+        return "\n".join(text_parts) if text_parts else parts[0].get("text", "")
 
 
 class DeepSeekProvider(LLMProvider):
@@ -602,6 +604,7 @@ Score each dimension 0-10 with clear reasoning. Be STRICT."""
 
         try:
             print_llm("Analyzing message...")
+            time.sleep(1)
             response = self.llm.complete(prompt, self.SYSTEM)
             return self._parse_response(response, action)
         except Exception as e:
@@ -991,6 +994,15 @@ class JudgeSimulator:
 # =============================================================================
 
 def main():
+    global BOT_URL, TEST_SCENARIO
+    for i, arg in enumerate(sys.argv):
+        if arg == "--live":
+            BOT_URL = "https://vera-ai-13c6.onrender.com"
+        elif arg in ["--url", "-u"] and i + 1 < len(sys.argv):
+            BOT_URL = sys.argv[i + 1]
+        elif arg in ["--scenario", "-s"] and i + 1 < len(sys.argv):
+            TEST_SCENARIO = sys.argv[i + 1]
+
     print_header("magicpin AI Challenge — LLM Judge")
 
     # Validate configuration
