@@ -342,13 +342,13 @@ async def healthz():
 @app.get("/v1/metadata")
 async def metadata():
     return {
-        "team_name": "Antigravity Vera",
+        "team_name": "vera bot builders",
         "team_members": ["Garvit Bansal"],
-        "model": "gemini-2.5-pro / claude-3-5-sonnet",
+        "model": "openai/gpt-4o-mini",
         "approach": "4-context modular composer with vertical voice profiles and Cialdini compulsion engineering",
-        "contact_email": "garvit@example.com",
+        "contact_email": "garvitbansal_23cs152@dtu.ac.in",
         "version": "1.0.0",
-        "submitted_at": "2026-04-26T08:00:00Z",
+        "submitted_at": "2026-04-27",
     }
 
 
