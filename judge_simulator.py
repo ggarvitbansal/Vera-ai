@@ -28,7 +28,7 @@ try:
 except ImportError:
     pass
 
-BOT_URL = os.environ.get("BOT_URL", "http://127.0.0.1:8000")
+BOT_URL = os.environ.get("BOT_URL", "https://model-1-x53u.onrender.com")
 
 # Auto-detect or specify LLM provider: "openai", "gemini", "groq", "anthropic", "deepseek", "ollama", "openrouter"
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "").lower()
@@ -36,6 +36,7 @@ LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "").lower()
 # Your API key (paste your key here or set in .env / environment)
 LLM_API_KEY = (
     os.environ.get("LLM_API_KEY")
+    or os.environ.get("OPENROUTER_API_KEY")
     or os.environ.get("OPENAI_API_KEY")
     or os.environ.get("GEMINI_API_KEY")
     or os.environ.get("GROQ_API_KEY")
@@ -46,7 +47,9 @@ LLM_API_KEY = (
 
 # Auto-assign provider if not explicitly given
 if not LLM_PROVIDER:
-    if os.environ.get("GEMINI_API_KEY") or LLM_API_KEY.startswith("AIzaSy") or LLM_API_KEY.startswith("AQ."):
+    if os.environ.get("OPENROUTER_API_KEY") or LLM_API_KEY.startswith("sk-or-"):
+        LLM_PROVIDER = "openrouter"
+    elif os.environ.get("GEMINI_API_KEY") or LLM_API_KEY.startswith("AIzaSy") or LLM_API_KEY.startswith("AQ."):
         LLM_PROVIDER = "gemini"
     elif os.environ.get("GROQ_API_KEY") or LLM_API_KEY.startswith("gsk_"):
         LLM_PROVIDER = "groq"
@@ -341,7 +344,7 @@ class OllamaProvider(LLMProvider):
 class OpenRouterProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = ""):
         self.api_key = api_key
-        self.model = model or "anthropic/claude-3-haiku"
+        self.model = model or "openai/gpt-4o-mini"
 
     def name(self) -> str:
         return f"OpenRouter ({self.model})"
